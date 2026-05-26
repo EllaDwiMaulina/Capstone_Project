@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { Icon } from '@iconify/react';
+import { clearAdminSession } from '../../utils/adminAuth.js';
+import AdminMapModal from '../../components/admin/AdminMapModal.jsx';
 
 // Kamus bahasa untuk fitur dinamis
 const t = {
@@ -25,6 +27,7 @@ const t = {
 };
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [showSettings, setShowSettings] = useState(false);
   const [showMap, setShowMap] = useState(false);
   
@@ -44,6 +47,11 @@ export default function Dashboard() {
     { id: 9, judul: "Pipa bocor di area pasar", kategori: "Air", lokasi: "Jakarta Timur", kerusakan: "Berat", status: "baru", tanggal: "17 Mei 2026", waktu: "08:00", image: "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=100&q=80" },
     { id: 10, judul: "Sampah menumpuk di taman", kategori: "Kebersihan", lokasi: "Jakarta Pusat", kerusakan: "Sedang", status: "selesai", tanggal: "16 Mei 2026", waktu: "14:20", image: "https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?auto=format&fit=crop&w=100&q=80" }
   ]);
+
+  const handleLogout = () => {
+    clearAdminSession();
+    navigate('/admin/login', { replace: true });
+  };
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] font-sans relative overflow-hidden">
@@ -68,6 +76,12 @@ export default function Dashboard() {
             <Icon icon="lucide:settings" className="w-5 h-5" /> {lang.pengaturan}
           </button>
         </nav>
+
+        <div className="p-4">
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-gray-300 hover:text-white hover:bg-[#243B63]/50 rounded-xl font-medium transition-colors">
+            <Icon icon="lucide:log-out" className="w-5 h-5" /> Logout
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-auto p-8">
@@ -145,25 +159,7 @@ export default function Dashboard() {
       </div>
 
       {showMap && (
-        <div className="fixed inset-0 bg-[#1E2F4D]/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#FFFFFF] w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
-            <div className="bg-[#F8FAFC] px-8 py-6 border-b border-[#E5E7EB] flex justify-between items-center">
-              <h2 className="text-xl font-bold text-[#1E2F4D]">{lang.peta}</h2>
-              <button onClick={() => setShowMap(false)} className="w-8 h-8 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-full flex items-center justify-center transition-colors">
-                <Icon icon="lucide:x" className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-8">
-              <div className="w-full h-[400px] bg-gray-100 rounded-2xl flex flex-col items-center justify-center border-2 border-dashed border-gray-300">
-                <Icon icon="lucide:map-pin" className="w-12 h-12 text-[#1E2F4D] mb-4 opacity-30" />
-                <p className="text-gray-400 font-medium">Modul Peta Interaktif</p>
-              </div>
-              <button onClick={() => setShowMap(false)} className="mt-6 w-full py-3 bg-[#1E2F4D] text-white rounded-xl font-bold hover:bg-[#243B63]">
-                Tutup Peta
-              </button>
-            </div>
-          </div>
-        </div>
+        <AdminMapModal title={lang.peta} onClose={() => setShowMap(false)} />
       )}
 
       {showSettings && (

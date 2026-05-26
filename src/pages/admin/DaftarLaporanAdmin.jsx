@@ -1,6 +1,10 @@
-import React, { useState, useMemo } from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { Icon } from '@iconify/react';
+import { clearAdminSession } from '../../utils/adminAuth.js';
+import AdminMapModal from '../../components/admin/AdminMapModal.jsx';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 // Kamus bahasa untuk fitur dinamis
 const t = {
@@ -23,36 +27,86 @@ const t = {
 };
 
 export default function DaftarLaporanAdmin() {
+  const navigate = useNavigate();
   const [showSettings, setShowSettings] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [selectedLang, setSelectedLang] = useState('id');
   const lang = t[selectedLang];
   const [sortOrder, setSortOrder] = useState('terbaru');
-  const [dateFilter, setDateFilter] = useState(''); 
+  const [dateFilter, setDateFilter] = useState('');
+  const [laporan, setLaporan] = useState([]);
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [laporan, setLaporan] = useState(Array.from({ length: 50 }, (_, i) => ({
-    id: i + 1,
-    judul: `Laporan Infrastruktur ${i + 1}`,
-    kategori: i % 2 === 0 ? "Jalan" : "Air",
-    lokasi: "Jakarta Selatan",
-    kerusakan: i % 3 === 0 ? "Berat" : i % 3 === 1 ? "Sedang" : "Ringan",
-    status: i % 4 === 0 ? "baru" : i % 4 === 1 ? "diproses" : i % 4 === 2 ? "pending" : "selesai",
-    tanggal: "2026-05-19",
-    waktu: "10:30",
-    image: "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=100&q=80"
-  })));
+  useEffect(() => {
+    let isMounted = true;
 
-  const filteredData = useMemo(() => {
-    let data = [...laporan];
-    if (dateFilter) {
-      data = data.filter(item => item.tanggal === dateFilter);
+    async function loadReports() {
+      setIsLoading(true);
+      setError('');
+
+      try {
+        const params = new URLSearchParams({ sort: sortOrder, limit: '100' });
+
+        if (dateFilter) {
+          params.set('date', dateFilter);
+        }
+
+        const response = await fetch(`${API_URL}/api/reports?${params.toString()}`);
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.message || 'Gagal memuat laporan.');
+        }
+
+        if (isMounted) {
+          setLaporan(result.data);
+        }
+      } catch (loadError) {
+        if (isMounted) {
+          setError(
+            loadError.message === 'Failed to fetch'
+              ? 'Backend belum berjalan. Jalankan npm run server atau npm run dev:full.'
+              : loadError.message,
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
     }
-    return data.sort((a, b) => {
-      const dateA = new Date(a.tanggal);
-      const dateB = new Date(b.tanggal);
-      return sortOrder === 'terbaru' ? dateB - dateA : dateA - dateB;
-    });
-  }, [laporan, sortOrder, dateFilter]);
+
+    loadReports();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [sortOrder, dateFilter]);
+
+  const handleLogout = () => {
+    clearAdminSession();
+    navigate('/admin/login', { replace: true });
+  };
+
+  const handleStatusChange = async (id, status) => {
+    setLaporan((current) => current.map((item) => (item.id === id ? { ...item, status } : item)));
+
+    try {
+      const response = await fetch(`${API_URL}/api/reports/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.message || 'Gagal memperbarui status.');
+      }
+    } catch (statusError) {
+      setError(statusError.message);
+    }
+  };
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] font-sans relative overflow-hidden">
@@ -77,6 +131,11 @@ export default function DaftarLaporanAdmin() {
             <Icon icon="lucide:settings" className="w-5 h-5" /> {lang.pengaturan}
           </button>
         </nav>
+        <div className="p-4">
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-gray-300 hover:text-white hover:bg-[#243B63]/50 rounded-xl font-medium transition-colors">
+            <Icon icon="lucide:log-out" className="w-5 h-5" /> Logout
+          </button>
+        </div>
       </div>
 
       {/* Main Content Area */}
@@ -90,6 +149,7 @@ export default function DaftarLaporanAdmin() {
             {/* Filter Kalender */}
             <input 
               type="date" 
+              value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)} 
               className="px-4 py-2.5 rounded-xl border border-[#E5E7EB] text-sm text-[#1E2F4D] focus:outline-none" 
             />
@@ -109,8 +169,8 @@ export default function DaftarLaporanAdmin() {
         </div>
 
         {/* Tabel Data Laporan */}
-        <div className="bg-[#FFFFFF] rounded-2xl border border-[#E5E7EB] shadow-sm overflow-hidden">
-          <table className="w-full text-left text-sm text-gray-600">
+        <div className="bg-[#FFFFFF] rounded-2xl border border-[#E5E7EB] shadow-sm overflow-x-auto">
+          <table className="w-full min-w-[1100px] text-left text-sm text-gray-600">
             <thead className="bg-[#F8FAFC] border-b border-[#E5E7EB]">
               <tr>
                 <th className="px-6 py-4 font-semibold">No</th>
@@ -124,7 +184,25 @@ export default function DaftarLaporanAdmin() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E5E7EB]">
-              {filteredData.map((item, index) => (
+              {isLoading && (
+                <tr>
+                  <td colSpan="8" className="px-6 py-12 text-center text-gray-400">Memuat laporan...</td>
+                </tr>
+              )}
+
+              {!isLoading && error && (
+                <tr>
+                  <td colSpan="8" className="px-6 py-12 text-center text-red-600">{error}</td>
+                </tr>
+              )}
+
+              {!isLoading && !error && laporan.length === 0 && (
+                <tr>
+                  <td colSpan="8" className="px-6 py-12 text-center text-gray-400">Belum ada laporan.</td>
+                </tr>
+              )}
+
+              {!isLoading && !error && laporan.map((item, index) => (
                 <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
                   <td className="px-6 py-4 font-semibold text-gray-900">{index + 1}</td>
                   <td className="px-6 py-4">
@@ -149,7 +227,7 @@ export default function DaftarLaporanAdmin() {
                     {/* Dropdown Status */}
                     <select 
                       value={item.status} 
-                      onChange={(e) => setLaporan(laporan.map(l => l.id === item.id ? {...l, status: e.target.value} : l))} 
+                      onChange={(e) => handleStatusChange(item.id, e.target.value)} 
                       className={`px-3 py-1.5 pr-8 rounded-full text-xs font-semibold outline-none cursor-pointer border border-transparent shadow-sm ${
                         item.status === 'baru' ? 'bg-blue-100 text-blue-700' :
                         item.status === 'diproses' ? 'bg-yellow-100 text-yellow-700' :
@@ -170,9 +248,9 @@ export default function DaftarLaporanAdmin() {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-center">
-                    {/* Tombol Aksi Ikon Mata */}
-                    <NavLink to={`/admin/laporan/${item.id}`} className="w-8 h-8 rounded-full border border-[#E5E7EB] flex items-center justify-center text-gray-500 hover:bg-[#1E2F4D] hover:text-white transition-all mx-auto shadow-sm">
+                    <NavLink to={`/admin/laporan/${item.id}`} className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#E5E7EB] px-3 py-2 text-gray-600 hover:bg-[#1E2F4D] hover:text-white transition-all mx-auto shadow-sm">
                       <Icon icon="lucide:eye" className="w-4 h-4" />
+                      <span className="text-xs font-bold">Detail</span>
                     </NavLink>
                   </td>
                 </tr>
@@ -184,25 +262,7 @@ export default function DaftarLaporanAdmin() {
 
       {/* Modal Peta Laporan */}
       {showMap && (
-        <div className="fixed inset-0 bg-[#1E2F4D]/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#FFFFFF] w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
-            <div className="bg-[#F8FAFC] px-8 py-6 border-b border-[#E5E7EB] flex justify-between items-center">
-              <h2 className="text-xl font-bold text-[#1E2F4D]">{lang.peta}</h2>
-              <button onClick={() => setShowMap(false)} className="w-8 h-8 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-full flex items-center justify-center transition-colors">
-                <Icon icon="lucide:x" className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-8">
-              <div className="w-full h-[400px] bg-gray-100 rounded-2xl flex flex-col items-center justify-center border-2 border-dashed border-gray-300">
-                <Icon icon="lucide:map-pin" className="w-12 h-12 text-[#1E2F4D] mb-4 opacity-30" />
-                <p className="text-gray-400 font-medium">Modul Peta Interaktif</p>
-              </div>
-              <button onClick={() => setShowMap(false)} className="mt-6 w-full py-3 bg-[#1E2F4D] text-white rounded-xl font-bold hover:bg-[#243B63]">
-                Tutup Peta
-              </button>
-            </div>
-          </div>
-        </div>
+        <AdminMapModal title={lang.peta} onClose={() => setShowMap(false)} />
       )}
 
       {/* Modal Pengaturan Sistem (Pilihan Bahasa) */}
