@@ -30,6 +30,13 @@ export default function Beranda() {
             >
               Lihat Laporan
             </Link>
+            <Link
+              to="/admin/login"
+              className="inline-flex items-center gap-2 bg-[#F8FAFC] text-[#1E2F4D] border-2 border-[#E5E7EB] px-6 py-3 rounded-md font-semibold text-lg hover:border-[#1E2F4D] transition-colors"
+            >
+              <Icon icon="lucide:shield-check" className="w-5 h-5" />
+              Dashboard Admin
+            </Link>
           </div>
         </div>
         
