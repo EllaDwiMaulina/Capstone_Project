@@ -8,6 +8,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 export default function DetailLaporan() {
   const navigate = useNavigate();
   const { id } = useParams();
+
   const [laporan, setLaporan] = useState(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -60,6 +61,7 @@ export default function DetailLaporan() {
     const latitude = Number(laporan.latitude);
     const longitude = Number(laporan.longitude);
     const offset = 0.03;
+
     const bbox = [
       longitude - offset,
       latitude - offset,
@@ -76,19 +78,22 @@ export default function DetailLaporan() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] font-sans pb-12">
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-[1400px] mx-auto px-8 py-5 flex items-center justify-between">
+    <div className="min-h-screen bg-[#F8FAFC]">
+      
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-20">
+        <div className="max-w-[1400px] mx-auto px-4 md:px-6 lg:px-8 py-4 flex items-center justify-between">
+          
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-slate-800 hover:text-[#1E2F4D] font-bold transition-colors"
+            className="flex items-center gap-2 text-[#1E2F4D] font-bold hover:text-[#243B63] transition-colors"
           >
             <Icon icon="lucide:arrow-left" className="w-5 h-5" />
             Kembali
           </button>
+
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2 text-slate-700 hover:text-[#1E2F4D] font-bold transition-colors"
+            className="flex items-center gap-2 text-[#1E2F4D] font-bold hover:text-[#243B63] transition-colors"
           >
             <Icon icon="lucide:log-out" className="w-5 h-5" />
             Logout
@@ -96,70 +101,188 @@ export default function DetailLaporan() {
         </div>
       </div>
 
-      <div className="max-w-[1400px] mx-auto px-8 mt-8">
-        {isLoading && <div className="bg-white rounded-2xl p-10 text-center text-gray-500">Memuat detail laporan...</div>}
-        {!isLoading && error && <div className="bg-white rounded-2xl p-10 text-center text-red-600">{error}</div>}
+      <div className="max-w-[1400px] mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8">
+        
+        {isLoading && (
+          <div className="bg-white rounded-2xl border border-[#E5E7EB] p-10 text-center text-gray-500">
+            Memuat detail laporan...
+          </div>
+        )}
+
+        {!isLoading && error && (
+          <div className="bg-white rounded-2xl border border-[#E5E7EB] p-10 text-center text-red-600">
+            {error}
+          </div>
+        )}
 
         {!isLoading && !error && laporan && (
-          <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-6">
-            <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-sm h-max">
-              <div className="flex items-center gap-3 mb-6">
-                <Icon icon="lucide:user-square-2" className="w-6 h-6 text-slate-700" />
-                <h2 className="text-xl font-bold text-slate-800">Informasi Lanjut</h2>
-              </div>
-
-              <div className="grid grid-cols-[180px_1fr] gap-y-4 mb-6 text-sm">
-                <div className="text-gray-500">Judul laporan</div>
-                <div className="font-bold text-slate-800 text-base">: {laporan.judul}</div>
-
-                <div className="text-gray-500">Deskripsi</div>
-                <div className="text-slate-800 leading-relaxed">: {laporan.deskripsi}</div>
-
-                <div className="text-gray-500">Kategori</div>
-                <div className="text-slate-800">: {laporan.kategori}</div>
-
-                <div className="text-gray-500">Tanggal Laporan</div>
-                <div className="text-slate-800">: {laporan.tanggal}, {laporan.waktu} WIB</div>
-
-                <div className="text-gray-500">Pelapor</div>
-                <div className="text-slate-800">: {laporan.pelapor || 'Masyarakat Umum'}</div>
-
-                <div className="text-gray-500">Tingkat Kerusakan</div>
-                <div className="text-slate-800">: {laporan.kerusakan || '-'}</div>
-
-                <div className="text-gray-500">Status</div>
-                <div className="text-slate-800 capitalize">: {laporan.status}</div>
-              </div>
-
-              <div className="text-gray-500 text-sm mb-4">Lampiran Gambar</div>
-              {laporan.image ? (
-                <img
-                  src={laporan.image}
-                  alt="Lampiran"
-                  className="w-full max-w-2xl h-auto object-cover rounded-xl border border-gray-200"
-                />
-              ) : (
-                <div className="w-full max-w-2xl h-[220px] rounded-xl border border-dashed border-gray-300 flex items-center justify-center text-gray-400">
-                  Tidak ada lampiran gambar.
+          <div className="grid grid-cols-1 xl:grid-cols-[1.5fr_1fr] gap-6">
+            
+            <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-5 md:p-8">
+              
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-12 h-12 rounded-2xl bg-[#EEF2FF] flex items-center justify-center">
+                  <Icon
+                    icon="lucide:file-text"
+                    className="w-6 h-6 text-[#1E2F4D]"
+                  />
                 </div>
-              )}
+
+                <div>
+                  <h2 className="text-xl md:text-2xl font-bold text-[#1E2F4D]">
+                    Detail Laporan
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    Informasi lengkap laporan warga
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-y-5 gap-x-6 text-sm md:text-base">
+                
+                <div className="font-semibold text-gray-500">
+                  Judul Laporan
+                </div>
+                <div className="text-[#1E2F4D] font-bold break-words">
+                  : {laporan.judul}
+                </div>
+
+                <div className="font-semibold text-gray-500">
+                  Deskripsi
+                </div>
+                <div className="text-gray-700 leading-relaxed break-words">
+                  : {laporan.deskripsi}
+                </div>
+
+                <div className="font-semibold text-gray-500">
+                  Kategori
+                </div>
+                <div className="text-gray-700">
+                  : {laporan.kategori}
+                </div>
+
+                <div className="font-semibold text-gray-500">
+                  Lokasi
+                </div>
+                <div className="text-gray-700 break-words">
+                  : {laporan.lokasi}
+                </div>
+
+                <div className="font-semibold text-gray-500">
+                  Tanggal
+                </div>
+                <div className="text-gray-700">
+                  : {laporan.tanggal}, {laporan.waktu} WIB
+                </div>
+
+                <div className="font-semibold text-gray-500">
+                  Pelapor
+                </div>
+                <div className="text-gray-700">
+                  : {laporan.pelapor || 'Masyarakat Umum'}
+                </div>
+
+                <div className="font-semibold text-gray-500">
+                  Tingkat Kerusakan
+                </div>
+
+                <div>
+                  :
+                  <span
+                    className={`ml-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+                      laporan.kerusakan === 'Berat'
+                        ? 'bg-red-50 text-red-600'
+                        : laporan.kerusakan === 'Sedang'
+                        ? 'bg-yellow-50 text-yellow-600'
+                        : 'bg-green-50 text-green-600'
+                    }`}
+                  >
+                    <Icon
+                      icon="lucide:activity"
+                      className="w-3.5 h-3.5"
+                    />
+                    {laporan.kerusakan || '-'}
+                  </span>
+                </div>
+
+                <div className="font-semibold text-gray-500">
+                  Status
+                </div>
+
+                <div>
+                  :
+                  <span
+                    className={`ml-2 inline-flex px-3 py-1 rounded-full text-xs font-semibold capitalize ${
+                      laporan.status === 'baru'
+                        ? 'bg-blue-100 text-blue-700'
+                        : laporan.status === 'diproses'
+                        ? 'bg-yellow-100 text-yellow-700'
+                        : laporan.status === 'pending'
+                        ? 'bg-orange-100 text-orange-700'
+                        : 'bg-green-100 text-green-700'
+                    }`}
+                  >
+                    {laporan.status}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-10">
+                <h3 className="text-lg font-bold text-[#1E2F4D] mb-4">
+                  Lampiran Gambar
+                </h3>
+
+                {laporan.image ? (
+                  <img
+                    src={laporan.image}
+                    alt="Lampiran laporan"
+                    className="w-full rounded-2xl border border-[#E5E7EB] object-cover max-h-[500px]"
+                  />
+                ) : (
+                  <div className="w-full h-[240px] rounded-2xl border-2 border-dashed border-[#E5E7EB] flex items-center justify-center text-gray-400">
+                    Tidak ada lampiran gambar.
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm h-max">
-              <h2 className="text-xl font-bold text-slate-800 mb-2">Lokasi Laporan</h2>
-              <p className="text-sm text-gray-600 mb-4">{laporan.lokasi}</p>
+            <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-5 md:p-6 h-max">
+              
+              <div className="mb-5">
+                <h2 className="text-xl font-bold text-[#1E2F4D] mb-2">
+                  Lokasi Laporan
+                </h2>
 
-              <div className="w-full h-[250px] bg-[#E5F3F1] rounded-xl overflow-hidden relative border border-gray-200 mb-4">
+                <p className="text-sm text-gray-500 break-words">
+                  {laporan.lokasi}
+                </p>
+              </div>
+
+              <div className="w-full h-[260px] md:h-[320px] rounded-2xl overflow-hidden border border-[#E5E7EB] bg-[#F8FAFC]">
+                
                 {mapUrl ? (
-                  <iframe title="Peta lokasi laporan" src={mapUrl} className="w-full h-full border-0" loading="lazy" />
+                  <iframe
+                    title="Peta lokasi laporan"
+                    src={mapUrl}
+                    className="w-full h-full border-0"
+                    loading="lazy"
+                  />
                 ) : (
-                  <div className="absolute inset-0 flex items-center justify-center bg-blue-50/50">
-                    <span className="text-blue-800/40 font-bold text-lg select-none">Koordinat belum tersedia</span>
+                  <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm text-center px-4">
+                    Koordinat lokasi belum tersedia
                   </div>
                 )}
               </div>
 
-              <p className="text-xs text-gray-500 italic">Titik lokasi mengikuti lokasi yang dikirim oleh pelapor.</p>
+              <div className="mt-4 flex items-start gap-2 text-xs text-gray-500">
+                <Icon
+                  icon="lucide:map-pinned"
+                  className="w-4 h-4 shrink-0 mt-0.5"
+                />
+                <p>
+                  Titik lokasi mengikuti lokasi yang dikirim oleh pelapor.
+                </p>
+              </div>
             </div>
           </div>
         )}
