@@ -237,19 +237,6 @@ export default function DetailLaporan() {
                   </span>
                 </div>
 
-                <div className="font-semibold text-gray-500">
-                  Sumber AI
-                </div>
-                <div className="text-gray-700">
-                  : {laporan.aiAnalysis?.source === 'huggingface' ? 'Hugging Face' : 'Default sistem'}
-                </div>
-
-                <div className="font-semibold text-gray-500">
-                  Confidence AI
-                </div>
-                <div className="text-gray-700">
-                  : {laporan.aiAnalysis?.confidence ? `${laporan.aiAnalysis.confidence}%` : '-'}
-                </div>
               </div>
 
               <div className="mt-10">
