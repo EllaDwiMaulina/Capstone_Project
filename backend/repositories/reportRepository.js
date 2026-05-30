@@ -24,8 +24,10 @@ function getReportImage(req, imageUrl) {
 }
 
 export function serializeReport(req, report) {
+  const { aiAnalysis: _aiAnalysis, ...publicReport } = report;
+
   return {
-    ...report,
+    ...publicReport,
     imageUrl: getReportImage(req, report.imageUrl),
     image: getReportImage(req, report.imageUrl),
     tanggal: new Date(report.createdAt).toISOString().slice(0, 10),
