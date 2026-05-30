@@ -15,6 +15,25 @@ export function getPool() {
   return pool;
 }
 
+async function columnExists(tableName, columnName) {
+  const [rows] = await pool.execute(
+    `SELECT COUNT(*) AS total
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+    [dbConfig.database, tableName, columnName],
+  );
+
+  return rows[0].total > 0;
+}
+
+async function addColumnIfMissing(tableName, columnName, definition) {
+  if (await columnExists(tableName, columnName)) {
+    return;
+  }
+
+  await pool.execute(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+}
+
 export async function initializeDatabase() {
   const shouldUseDatabase = Boolean(dbConfig.host && dbConfig.user && dbConfig.database);
 
@@ -22,6 +41,19 @@ export async function initializeDatabase() {
     console.log('Database belum dikonfigurasi. Server memakai data sementara di memori.');
     return;
   }
+
+  const setupConnection = await mysql.createConnection({
+    host: dbConfig.host,
+    user: dbConfig.user,
+    password: dbConfig.password,
+    port: dbConfig.port,
+  });
+
+  await setupConnection.execute(
+    `CREATE DATABASE IF NOT EXISTS ${mysql.escapeId(dbConfig.database)}
+     CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`,
+  );
+  await setupConnection.end();
 
   pool = mysql.createPool({
     ...dbConfig,
@@ -43,10 +75,32 @@ export async function initializeDatabase() {
       image_url TEXT NULL,
       latitude DECIMAL(10, 8) NULL,
       longitude DECIMAL(11, 8) NULL,
+      ai_source VARCHAR(50) NOT NULL DEFAULT 'default',
+      ai_severity_score INT NULL,
+      ai_confidence DECIMAL(5, 2) NULL,
+      ai_probabilities TEXT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )
   `);
 
-  console.log('Database MySQL terhubung dan tabel reports siap.');
+  await addColumnIfMissing('reports', 'ai_source', "VARCHAR(50) NOT NULL DEFAULT 'default'");
+  await addColumnIfMissing('reports', 'ai_severity_score', 'INT NULL');
+  await addColumnIfMissing('reports', 'ai_confidence', 'DECIMAL(5, 2) NULL');
+  await addColumnIfMissing('reports', 'ai_probabilities', 'TEXT NULL');
+
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS report_histories (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      report_id INT NOT NULL,
+      status VARCHAR(50) NOT NULL,
+      note TEXT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT fk_report_histories_report
+        FOREIGN KEY (report_id) REFERENCES reports(id)
+        ON DELETE CASCADE
+    )
+  `);
+
+  console.log('Database MySQL terhubung. Tabel reports dan report_histories siap.');
 }

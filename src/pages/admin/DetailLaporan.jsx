@@ -77,6 +77,17 @@ export default function DetailLaporan() {
     navigate('/admin/login', { replace: true });
   };
 
+  const formatHistoryTime = (value) => {
+    if (!value) {
+      return '-';
+    }
+
+    return new Date(value).toLocaleString('id-ID', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+  };
+
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
       
@@ -225,6 +236,20 @@ export default function DetailLaporan() {
                     {laporan.status}
                   </span>
                 </div>
+
+                <div className="font-semibold text-gray-500">
+                  Sumber AI
+                </div>
+                <div className="text-gray-700">
+                  : {laporan.aiAnalysis?.source === 'huggingface' ? 'Hugging Face' : 'Default sistem'}
+                </div>
+
+                <div className="font-semibold text-gray-500">
+                  Confidence AI
+                </div>
+                <div className="text-gray-700">
+                  : {laporan.aiAnalysis?.confidence ? `${laporan.aiAnalysis.confidence}%` : '-'}
+                </div>
               </div>
 
               <div className="mt-10">
@@ -241,6 +266,41 @@ export default function DetailLaporan() {
                 ) : (
                   <div className="w-full h-[240px] rounded-2xl border-2 border-dashed border-[#E5E7EB] flex items-center justify-center text-gray-400">
                     Tidak ada lampiran gambar.
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-10">
+                <h3 className="text-lg font-bold text-[#1E2F4D] mb-4">
+                  Riwayat Laporan
+                </h3>
+
+                {laporan.histories?.length > 0 ? (
+                  <div className="space-y-3">
+                    {laporan.histories.map((history) => (
+                      <div key={history.id} className="flex items-start gap-3 rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] p-4">
+                        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1E2F4D] text-white">
+                          <Icon icon="lucide:history" className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold capitalize text-[#1E2F4D]">
+                            Status: {history.status}
+                          </p>
+                          <p className="mt-1 text-xs text-gray-500">
+                            {formatHistoryTime(history.createdAt)}
+                          </p>
+                          {history.note && (
+                            <p className="mt-2 text-sm text-gray-600">
+                              {history.note}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-[#E5E7EB] p-5 text-sm text-gray-400">
+                    Belum ada riwayat laporan.
                   </div>
                 )}
               </div>

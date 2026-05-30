@@ -43,7 +43,13 @@ export async function geocodeAddress(address) {
 }
 
 export async function geocodeAddressOrFallback(address) {
-  const geocoded = await geocodeAddress(address);
+  let geocoded = null;
+
+  try {
+    geocoded = await geocodeAddress(address);
+  } catch (error) {
+    console.warn('Geocoding OpenCage gagal, memakai fallback jika tersedia:', error.message);
+  }
 
   if (geocoded) {
     return geocoded;

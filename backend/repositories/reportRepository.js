@@ -1,8 +1,16 @@
 import { getPool } from '../config/database.js';
 import { seedReports } from '../data/seedReports.js';
+import { getPriorityFromDamageLevel, predictDamageLevel } from '../services/aiPredictionService.js';
 import { geocodeAddressOrFallback } from '../services/geocodingService.js';
 
 const memoryReports = [...seedReports];
+const memoryHistories = memoryReports.map((report) => ({
+  id: report.id,
+  reportId: report.id,
+  status: report.status,
+  note: 'Laporan dibuat.',
+  createdAt: report.createdAt,
+}));
 
 const allowedStatuses = ['baru', 'pending', 'diproses', 'selesai'];
 const allowedDamageLevels = ['Ringan', 'Sedang', 'Berat'];
@@ -30,6 +38,14 @@ export function serializeReport(req, report) {
 }
 
 function mapDbReport(row) {
+  let probabilities = null;
+
+  try {
+    probabilities = row.ai_probabilities ? JSON.parse(row.ai_probabilities) : null;
+  } catch {
+    probabilities = null;
+  }
+
   return {
     id: row.id,
     judul: row.judul,
@@ -43,8 +59,24 @@ function mapDbReport(row) {
     imageUrl: row.image_url,
     latitude: row.latitude,
     longitude: row.longitude,
+    aiAnalysis: {
+      source: row.ai_source,
+      severityScore: row.ai_severity_score,
+      confidence: row.ai_confidence,
+      probabilities,
+    },
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+function mapDbHistory(row) {
+  return {
+    id: row.id,
+    reportId: row.report_id,
+    status: row.status,
+    note: row.note,
+    createdAt: row.created_at,
   };
 }
 
@@ -58,11 +90,17 @@ function normalizeReportPayload(payload) {
     lokasi: payload.lokasi?.trim(),
     status: allowedStatuses.includes(payload.status) ? payload.status : 'baru',
     kerusakan,
-    prioritas: payload.prioritas || (kerusakan === 'Berat' ? 'High' : kerusakan === 'Sedang' ? 'Medium' : 'Low'),
+    prioritas: payload.prioritas || getPriorityFromDamageLevel(kerusakan),
     pelapor: payload.pelapor?.trim() || 'Masyarakat Umum',
     imageUrl: payload.imageUrl || null,
     latitude: payload.latitude || null,
     longitude: payload.longitude || null,
+    aiAnalysis: payload.aiAnalysis || {
+      source: 'default',
+      severityScore: null,
+      confidence: null,
+      probabilities: null,
+    },
   };
 }
 
@@ -153,15 +191,41 @@ export async function findReportById(id) {
 
   if (pool) {
     const [rows] = await pool.execute('SELECT * FROM reports WHERE id = ? LIMIT 1', [id]);
-    return rows[0] ? mapDbReport(rows[0]) : null;
+    if (!rows[0]) {
+      return null;
+    }
+
+    const report = mapDbReport(rows[0]);
+    report.histories = await findReportHistories(id);
+    return report;
   }
 
-  return memoryReports.find((report) => report.id === id) || null;
+  const report = memoryReports.find((item) => item.id === id);
+
+  if (!report) {
+    return null;
+  }
+
+  return {
+    ...report,
+    histories: memoryHistories.filter((history) => history.reportId === id),
+  };
 }
 
 export async function createReport(payload) {
   const report = normalizeReportPayload(payload);
   validateReportPayload(report);
+  const prediction = await predictDamageLevel(report.deskripsi);
+
+  report.kerusakan = prediction.kerusakan;
+  report.prioritas = getPriorityFromDamageLevel(report.kerusakan);
+  report.aiAnalysis = {
+    source: prediction.source,
+    severityScore: prediction.severityScore || null,
+    confidence: prediction.confidence || null,
+    probabilities: prediction.probabilities || null,
+  };
+
   const coordinates = report.latitude && report.longitude ? null : await geocodeAddressOrFallback(report.lokasi);
 
   if (coordinates) {
@@ -174,8 +238,9 @@ export async function createReport(payload) {
   if (pool) {
     const [result] = await pool.execute(
       `INSERT INTO reports
-        (judul, deskripsi, kategori, lokasi, status, kerusakan, prioritas, pelapor, image_url, latitude, longitude)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (judul, deskripsi, kategori, lokasi, status, kerusakan, prioritas, pelapor, image_url,
+         latitude, longitude, ai_source, ai_severity_score, ai_confidence, ai_probabilities)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         report.judul,
         report.deskripsi,
@@ -188,9 +253,14 @@ export async function createReport(payload) {
         report.imageUrl,
         report.latitude,
         report.longitude,
+        report.aiAnalysis.source,
+        report.aiAnalysis.severityScore,
+        report.aiAnalysis.confidence,
+        report.aiAnalysis.probabilities ? JSON.stringify(report.aiAnalysis.probabilities) : null,
       ],
     );
 
+    await addReportHistory(result.insertId, report.status, 'Laporan dibuat.');
     return findReportById(result.insertId);
   }
 
@@ -203,6 +273,13 @@ export async function createReport(payload) {
   };
 
   memoryReports.unshift(createdReport);
+  memoryHistories.push({
+    id: memoryHistories.length ? Math.max(...memoryHistories.map((item) => item.id)) + 1 : 1,
+    reportId: createdReport.id,
+    status: createdReport.status,
+    note: 'Laporan dibuat.',
+    createdAt: now,
+  });
   return createdReport;
 }
 
@@ -230,7 +307,8 @@ export async function updateReport(id, payload) {
     await pool.execute(
       `UPDATE reports
        SET judul = ?, deskripsi = ?, kategori = ?, lokasi = ?, status = ?, kerusakan = ?,
-           prioritas = ?, pelapor = ?, image_url = ?, latitude = ?, longitude = ?
+           prioritas = ?, pelapor = ?, image_url = ?, latitude = ?, longitude = ?,
+           ai_source = ?, ai_severity_score = ?, ai_confidence = ?, ai_probabilities = ?
        WHERE id = ?`,
       [
         report.judul,
@@ -244,6 +322,10 @@ export async function updateReport(id, payload) {
         report.imageUrl,
         report.latitude,
         report.longitude,
+        report.aiAnalysis?.source || 'default',
+        report.aiAnalysis?.severityScore || null,
+        report.aiAnalysis?.confidence || null,
+        report.aiAnalysis?.probabilities ? JSON.stringify(report.aiAnalysis.probabilities) : null,
         id,
       ],
     );
@@ -268,7 +350,54 @@ export async function updateReportStatus(id, status) {
     throw error;
   }
 
-  return updateReport(id, { status });
+  const existingReport = await findReportById(id);
+
+  if (!existingReport) {
+    return null;
+  }
+
+  const updatedReport = await updateReport(id, { status });
+
+  if (updatedReport && existingReport.status !== status) {
+    await addReportHistory(id, status, `Status diubah dari ${existingReport.status} menjadi ${status}.`);
+  }
+
+  return updatedReport;
+}
+
+export async function addReportHistory(reportId, status, note = null) {
+  const pool = getPool();
+
+  if (pool) {
+    await pool.execute(
+      'INSERT INTO report_histories (report_id, status, note) VALUES (?, ?, ?)',
+      [reportId, status, note],
+    );
+    return;
+  }
+
+  memoryHistories.push({
+    id: memoryHistories.length ? Math.max(...memoryHistories.map((item) => item.id)) + 1 : 1,
+    reportId,
+    status,
+    note,
+    createdAt: new Date().toISOString(),
+  });
+}
+
+export async function findReportHistories(reportId) {
+  const pool = getPool();
+
+  if (pool) {
+    const [rows] = await pool.execute(
+      'SELECT * FROM report_histories WHERE report_id = ? ORDER BY created_at ASC, id ASC',
+      [reportId],
+    );
+
+    return rows.map(mapDbHistory);
+  }
+
+  return memoryHistories.filter((history) => history.reportId === reportId);
 }
 
 export async function deleteReport(id) {
