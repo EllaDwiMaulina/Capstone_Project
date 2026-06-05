@@ -1,0 +1,44 @@
+{
+  "model_name": "indobenchmark/indobert-base-p1",
+  "max_len": 128,
+  "num_classes": 3,
+  "label_mapping": {
+    "0": "ringan",
+    "1": "sedang",
+    "2": "berat"
+  },
+  "numeric_columns": [
+    "char_length",
+    "word_count",
+    "has_urgency_keyword",
+    "urgency_score"
+  ],
+  "urgency_keywords": [
+    "darurat",
+    "parah",
+    "besar",
+    "bahaya",
+    "rusak berat",
+    "banjir besar",
+    "ambles",
+    "putus",
+    "kebakaran",
+    "longsor",
+    "fatal",
+    "urgent",
+    "tolong",
+    "segera",
+    "terendam",
+    "gawat",
+    "macet parah",
+    "membahayakan",
+    "korban",
+    "retak besar"
+  ],
+  "damage_map": {
+    "ringan": 0.2,
+    "sedang": 0.5,
+    "berat": 1.0
+  },
+  "bert_hidden_size": 768
+}
